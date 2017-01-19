@@ -36,7 +36,6 @@ $seg_data_re = 0x04
 $seg_data_rea = 0x05
 $seg_data_rwe = 0x06
 $seg_data_rwea = 0x07
-$seg_tss_xa = 0x09
 
 $options = {
     :format => :nasm
@@ -68,34 +67,40 @@ def wizard
             'rea'  => OpenStruct.new(:desc => '|         | yes  |       | yes      |            | yes         |', :flag => $seg_data_rea),
             'rwe'  => OpenStruct.new(:desc => '|         | yes  | yes   |          |            | yes         |', :flag => $seg_data_rwe),
             'rwea' => OpenStruct.new(:desc => '|         | yes  | yes   | yes      |            | yes         |', :flag => $seg_data_rwea),
-        },
-        :tss => {
-            'xa'   => OpenStruct.new(:desc => '| yes     |      |       | yes      |            |             |', :flag => $seg_tss_xa),
-        },
+        }
     }
     # Get the access flag
-    puts 'Please choose the appropriate access flag:'
-    puts '|------|---------|------|-------|----------|------------|-------------|'
-    puts '| Flag | Execute | Read | Write | Accessed | Conforming | Expand-down |'
-    puts '|------|---------|------|-------|----------|------------|-------------|'
-    inputs[desc_type].each { |k, v| puts "| #{k.to_s.ljust(5)}#{v.desc}" }
-    puts '|------|---------|------|-------|----------|------------|-------------|'
-    print 'Flag> '
-    access_flag = inputs[desc_type][STDIN.gets.chomp].flag
+    access_flag = $seg_code_xa
+    if desc_type != :tss
+        puts 'Please choose the appropriate access flag:'
+        puts '|------|---------|------|-------|----------|------------|-------------|'
+        puts '| Flag | Execute | Read | Write | Accessed | Conforming | Expand-down |'
+        puts '|------|---------|------|-------|----------|------------|-------------|'
+        inputs[desc_type].each { |k, v| puts "| #{k.to_s.ljust(5)}#{v.desc}" }
+        puts '|------|---------|------|-------|----------|------------|-------------|'
+        print 'Flag> '
+        access_flag = inputs[desc_type][STDIN.gets.chomp].flag
+    end
     # Get granularity
-    puts 'Please choose the granularity:'
-    puts '[0] 1 B  - 1 MB'
-    puts '[1] 4 KB - 4 GB'
-    print 'Granularity> '
-    granularity = seg_gran(STDIN.gets.chomp.to_i)
+    granularity = 0
+    if desc_type != :tss
+        puts 'Please choose the granularity:'
+        puts '[0] 1 B  - 1 MB'
+        puts '[1] 4 KB - 4 GB'
+        print 'Granularity> '
+        granularity = seg_gran(STDIN.gets.chomp.to_i)
+    end
     # Get privilege level
-    puts 'Please choose the privilege level:'
-    puts '[0] RING 0 (Kernel)'
-    puts '[1] RING 1'
-    puts '[2] RING 2'
-    puts '[3] RING 3 (Usermode)'
-    print 'Privilege> '
-    privilege = seg_priv(STDIN.gets.chomp.to_i)
+    privilege = 0
+    if desc_type != :tss
+        puts 'Please choose the privilege level:'
+        puts '[0] RING 0 (Kernel)'
+        puts '[1] RING 1'
+        puts '[2] RING 2'
+        puts '[3] RING 3 (Usermode)'
+        print 'Privilege> '
+        privilege = seg_priv(STDIN.gets.chomp.to_i)
+    end
     # Get base
     print 'Base address (hex)> '
     base = STDIN.gets.chomp.to_i(16)
@@ -110,7 +115,7 @@ def wizard
     entry = create_descriptor(base, limit, flags)
     entry_hex = entry.to_s(16)
     # Generate entry name
-    entry_var_name = "gdt32_#{desc_type.to_s.downcase}_pl#{privilege}"
+    entry_var_name = "gdt32_#{desc_type.to_s.downcase}#{desc_type != :tss ? "_pl#{privilege}" : ""}"
     # Generate code
     case $options[:format]
     when :nasm
